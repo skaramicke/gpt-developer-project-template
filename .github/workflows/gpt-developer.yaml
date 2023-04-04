@@ -1,0 +1,50 @@
+name: GPT Developer
+
+on:
+  issues:
+    types:
+      - labeled
+
+jobs:
+  update-code-on-issue:
+    if: github.event.label.name == 'gpt-developer'
+    name: Update the code according to issue text
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+    steps:
+      - uses: ben-z/actions-comment-on-issue@1.0.2
+        with:
+          message: "I'm working on it! - GPT Developer"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Update code
+        uses: skaramicke/gpt-developer@v1
+        id: gpt
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_SECRET }}
+          issue_number: ${{ github.event.issue.number }}
+          issue_text: "${{ github.event.issue.title}}, ${{ github.event.issue.body }} - created by ${{ github.event.issue.user.login }}"
+          path: ${{ github.workspace }}
+
+      - uses: ben-z/actions-comment-on-issue@1.0.2
+        if: ${{ steps.gpt.outputs.exit_message != '' }}
+        with:
+          message: ${{ steps.gpt.outputs.exit_message }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit changes
+        if: ${{ steps.gpt.outputs.commit_message != '' }}
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: ${{ steps.gpt.outputs.commit_message }} - gpt-developer
+
+      - uses: ben-z/actions-comment-on-issue@1.0.2
+        if: ${{ steps.gpt.outputs.commit_message != '' }}
+        with:
+          message: 'I''ve updated the code with this commit message: "${{ steps.gpt.outputs.commit_message }}" - GPT Developer'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
